@@ -4,7 +4,7 @@
 
 // OpenZeppelin Contracts (last updated v5.1.0) (token/ERC20/IERC20.sol)
 
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.28;
 
 /**
  * @dev Interface of the ERC-20 standard as defined in the ERC.
