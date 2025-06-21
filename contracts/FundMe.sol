@@ -10,15 +10,17 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interf
 // 4.在锁定期内，达到目标值，投资人可以退款
 
 contract FundMe {
-    AggregatorV3Interface internal dataFeed;
+    AggregatorV3Interface public dataFeed;
     mapping(address => uint256) public fundersToAmount;
     uint256 MIN_VAL = 1 * 10 ** 18; //wei
-    uint256 constant TARGET = 4500 * 10 ** 18;
+    uint256 constant TARGET = 1000 * 10 ** 18;
     address public  owner;
     uint256 public deploymentTimestamp;
     uint256 public locktime;
     address public erc20Addr;
     bool public getFundSuccess = false;
+    event FundWithDrawByOwner(uint256);
+    event RefundByFunder(address, uint256);
 
     function fund() external payable {
         require(convertEthToUsd(msg.value) >= MIN_VAL, "you must send at least 1 wei");
@@ -29,12 +31,10 @@ contract FundMe {
     /**
      * Network: Sepolia
      * Aggregator: BTC/USD
-     * Address: 0x1b44F3514812d835EB1BDB0acB33d3fA3351Ee43
+     * Address: 0x694AA1769357215DE4FAC081bf1f309aDC325306
      */
-    constructor(uint256 _locktime) {
-        dataFeed = AggregatorV3Interface(
-            0x694AA1769357215DE4FAC081bf1f309aDC325306
-        );
+    constructor(uint256 _locktime, address dataFeedAddress) {
+        dataFeed = AggregatorV3Interface(dataFeedAddress);
         // msg block 系统变量
         owner = msg.sender;
         deploymentTimestamp = block.timestamp;
@@ -70,9 +70,12 @@ contract FundMe {
         // require(suss,"tx failed");
         // call: transfer ETH with data return value of function and bool
         bool suss;
-        (suss, ) = payable(msg.sender).call{value:address(this).balance}("");
+        uint256 balance = (address(this).balance);
+        (suss, ) = payable(msg.sender).call{value:balance}("");
         require(suss,"tx failed");
         getFundSuccess = true;
+        // emit event
+        emit FundWithDrawByOwner(balance);
     }
 
     function transferOwnership(address newOwner) public  {
@@ -84,9 +87,11 @@ contract FundMe {
         require(convertEthToUsd(address(this).balance) < TARGET,"Target is reached");
         require(fundersToAmount[msg.sender] != 0, "there is no fund for you!");
         bool suss;
-        (suss, ) = payable(msg.sender).call{value:fundersToAmount[msg.sender]}("");
+        uint256 balance = fundersToAmount[msg.sender];
+        (suss, ) = payable(msg.sender).call{value:balance}("");
         require(suss,"tx failed");
         fundersToAmount[msg.sender] = 0;
+        emit RefundByFunder(msg.sender,balance);
     }
 
     function setFunderToAmount(address funder, uint256 amountToUpdate) external  {
